@@ -16,12 +16,12 @@ class t_env:
     #if __name__ == '__main__':
      # self.main()
 
-  def board_height_pos(self, row):
+  def board_height_pos(self, board_in, row):
     height_pos = 0
     while height_pos < 20:
-      if self.board[height_pos, row] == 0:
+      if board_in[height_pos, row] == 0:
         height_pos += 1
-      elif self.board[height_pos, row]:
+      elif board_in[height_pos, row]:
         break;
     return height_pos
 
@@ -39,22 +39,71 @@ class t_env:
       i -= 1
     return row
 
-  def line_clear(self, line):
+  def line_clear(self, board_in, line):
     while line >= 0:
         if line == 0:
-            self.board[0, ] = np.zeros(10)
+            board_in[0, ] = np.zeros(10)
         else:
-            self.board[line, ] = self.board[line - 1, ]
+            board_in[line, ] = board_in[line - 1, ]
         line -= 1
 
-  def if_line_full(self):
+  def if_line_full(self, board_in):
       ct = 19
       compare_to = np.array([1,1,1,1,1,1,1,1,1,1])
       while ct >= 0:
-          if np.all(self.board[ct, ] == compare_to):
-              self.line_clear(ct)
+          if np.all(board_in[ct, ] == compare_to):
+              self.line_clear(board_in, ct)
               print("line full and line cleared")
           ct -= 1
+
+  def predict_board(self, tet, action):
+      temp_board = self.board.copy()
+
+      #action = [rot, mov] rot->(0~3), mov->(0~9)
+      rot = action[0]
+      mov = action[1]
+
+      tetromino = np.rot90(tet, rot)
+
+      pos = [0,0] #(y,x)
+
+      #get x_pos according to mov
+      if mov+tetromino.shape[1] >= 10:
+        pos[1] = 10 - tetromino.shape[1]
+      else:
+        pos[1] = mov
+
+      #get y_pos according to board state
+      x_sel = 0
+      max_y_pos = 0
+      board_hpos = [0] * tetromino.shape[1]
+
+      while x_sel < tetromino.shape[1]:
+        board_hpos[x_sel]=self.board_height_pos(temp_board, x_sel + pos[1]) ### check point hpos = height position
+        x_sel += 1
+
+      diff_h = np.subtract(board_hpos, self.tetromino_height(tetromino))
+      #print(diff_h, board_hpos, self.tetromino_height(tetromino))
+      pos[0] = diff_h[np.argmin(diff_h)]
+      #print(diff_h[np.argmin(diff_h)])
+
+
+      #apply action to temp_board
+      j=0
+      while j < tetromino.shape[0]:
+        i = 0
+        while i < tetromino.shape[1]:
+          abs_pos_y = j + pos[0]
+          abs_pos_x = i + pos[1]
+          temp_board[abs_pos_y, abs_pos_x] += tetromino[j,i]
+          i+=1
+        j+=1
+
+      self.if_line_full(temp_board)
+      ###Reward calc here
+      print("this is a pridiction")
+      print(temp_board)
+
 
   def apply_board(self, tet, action):
     #action = [rot, mov] rot->(0~3), mov->(0~9)
@@ -77,7 +126,7 @@ class t_env:
     board_hpos = [0] * tetromino.shape[1]
 
     while x_sel < tetromino.shape[1]:
-      board_hpos[x_sel]=self.board_height_pos(x_sel + pos[1]) ### check point hpos = height position
+      board_hpos[x_sel]=self.board_height_pos(self.board, x_sel + pos[1]) ### check point hpos = height position
       x_sel += 1
 
     diff_h = np.subtract(board_hpos, self.tetromino_height(tetromino))
@@ -97,8 +146,8 @@ class t_env:
         i+=1
       j+=1
 
-    self.if_line_full()
-
+    self.if_line_full(self.board)
+    print("this is real")
     print(tetromino)
     print(pos)
     print(self.board)
